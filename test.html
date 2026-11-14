@@ -74,7 +74,7 @@ a{color:var(--vi)}
 </div>
 
 <script>
-const RUN = "__RUN__";
+const RUN = new URLSearchParams(location.search).get("r") || "__RUN__";
 const SITE = "__SITE__";
 const db = window.supabase.createClient(
   "https://bytpztfhwdcuqozdzjeu.supabase.co",
